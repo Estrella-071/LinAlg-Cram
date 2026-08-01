@@ -1,21 +1,22 @@
 name: Temporary video to GIF
 
 on:
-  push:
+  pull_request:
     branches: [main]
     paths:
-      - '.github/workflows/tmp-video-to-gif.yml'
+      - 'tmp-gif-trigger.txt'
 
 permissions:
   contents: write
 
 jobs:
   convert:
-    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
 
       - name: Download and convert
         shell: bash
@@ -36,12 +37,19 @@ jobs:
 
           ls -lh source.mp4 cute_x_video.gif
 
-      - name: Commit GIF
+      - name: Commit GIF to temporary branch
         shell: bash
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add cute_x_video.gif
-          git commit -m 'Temporary GIF conversion output'
-          git push
+          git commit -m 'Add temporary converted GIF'
+          git push origin HEAD:${{ github.head_ref }}
+
+      - name: Upload GIF artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cute-x-video-gif
+          path: cute_x_video.gif
+          if-no-files-found: error
