@@ -1,0 +1,55 @@
+TEXT / METADATA
+================================================================================
+text: "Why do you always wanna stay home alone?" 
+
+Me alone at home:
+text: "Why do you always wanna stay home alone?" 
+
+Me alone at home: https://t.co/hR5BfE8gz6
+description: Manchester united ❤
+raw lessons 
+J. Dm for promotion 😎
+text: Manchester united ❤
+raw lessons 
+J. Dm for promotion 😎
+title: H - "Why do you always wanna stay home alone?"   Me alone at home:
+description: "Why do you always wanna stay home alone?"   Me alone at home: https://t.co/hR5BfE8gz6
+
+DISCOVERED URLS
+================================================================================
+[1] https://video.twimg.com/amplify_video/2083186739871404032/vid/avc1/1480x1080/n37Oto_lktvSgo62.mp4?tag=29
+  {     "programs": [      ],     "streams": [         {             "codec_name": "h264",             "width": 1480,             "height": 1080,             "r_frame_rate": "60/1",             "bit_rate": "2522121"         }     ],     "format": {         "duration": "8.266304",         "size": "2733985",         "bit_rate": "2645908"     } } 
+[2] https://video.twimg.com/amplify_video/2083186739871404032/pl/oUqX3_Qz0D5uGOGE.m3u8?tag=29
+  {  } 
+[3] https://video.twimg.com/amplify_video/2083186739871404032/vid/avc1/370x270/mZ-ahvoKg0VdOuH3.mp4?tag=29
+  {     "programs": [      ],     "streams": [         {             "codec_name": "h264",             "width": 370,             "height": 270,             "r_frame_rate": "60/1",             "bit_rate": "105330"         }     ],     "format": {         "duration": "8.266304",         "size": "155802",         "bit_rate": "150782"     } } 
+[4] https://video.twimg.com/amplify_video/2083186739871404032/vid/avc1/492x360/YUgHaBjttvbpyDR_.mp4?tag=29
+  {     "programs": [      ],     "streams": [         {             "codec_name": "h264",             "width": 492,             "height": 360,             "r_frame_rate": "60/1",             "bit_rate": "266367"         }     ],     "format": {         "duration": "8.266304",         "size": "354133",         "bit_rate": "342724"     } } 
+[5] https://video.twimg.com/amplify_video/2083186739871404032/vid/avc1/986x720/upAKgDNo_RVbKtsz.mp4?tag=29
+  {     "programs": [      ],     "streams": [         {             "codec_name": "h264",             "width": 986,             "height": 720,             "r_frame_rate": "60/1",             "bit_rate": "727693"         }     ],     "format": {         "duration": "8.266304",         "size": "893293",         "bit_rate": "864515"     } } 
+[6] https://video.twimg.com/amplify_video/2083186739871404032/vid/avc1/1480x1080/n37Oto_lktvSgo62.mp4
+  {     "programs": [      ],     "streams": [         {             "codec_name": "h264",             "width": 1480,             "height": 1080,             "r_frame_rate": "60/1",             "bit_rate": "2522121"         }     ],     "format": {         "duration": "8.266304",         "size": "2733985",         "bit_rate": "2645908"     } } 
+[7] https://video.twimg.com/amplify_video/2083186739871404032/pl/mp4a/32000/5INz8V5cuV3QmTaH.m3u8
+  {  } 
+[8] https://video.twimg.com/amplify_video/2083186739871404032/pl/mp4a/64000/4fFDrx4go_cq2pps.m3u8
+  {  } 
+[9] https://video.twimg.com/amplify_video/2083186739871404032/pl/mp4a/128000/-jXI0JRmnRi02GIC.m3u8
+  {  } 
+[10] https://video.twimg.com/amplify_video/2083186739871404032/pl/avc1/370x270/fCNBj5n8EAtdUWCO.m3u8
+  {  } 
+[11] https://video.twimg.com/amplify_video/2083186739871404032/pl/avc1/492x360/v6SUZEl_fyTqHvGl.m3u8
+  {  } 
+[12] https://video.twimg.com/amplify_video/2083186739871404032/pl/avc1/986x720/MRsQ0mFsy5tFeSMa.m3u8
+  {  } 
+[13] https://video.twimg.com/amplify_video/2083186739871404032/pl/avc1/1480x1080/CsbqV2vU2d0qBrfD.m3u8
+  {  } 
+[14] H - ＂Why do you always wanna stay home alone？＂   Me alone at home： [2083186739871404032].mp4
+  download failed: curl: (3) bad range in URL position 77:
+H - ＂Why do you always wanna stay home alone？＂   Me alone at home： [2083186739871404032].mp4
+                                                                            ^
+
+
+--- yt-dlp error ---
+
+--- gallery-dl error ---
+[twitter][info] Requesting guest token
