@@ -1,2 +1,2 @@
 Probe higher-quality variants for X status 2083186849879630084.
-Run 3: recover and match trailer master.
+Run 4: recover from 4K mirror and align frames.
