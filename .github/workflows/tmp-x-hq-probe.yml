@@ -1,0 +1,100 @@
+name: Temporary X HQ probe
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tmp-x-hq-trigger.txt'
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Probe tweet media sources
+        shell: bash
+        run: |
+          set -u
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg jq
+          python -m pip install -q yt-dlp gallery-dl
+
+          TWEET='https://x.com/IfeanyiEmm34386/status/2083186849879630084'
+          FX='https://api.fxtwitter.com/IfeanyiEmm34386/status/2083186849879630084'
+          VX='https://api.vxtwitter.com/IfeanyiEmm34386/status/2083186849879630084'
+          SYN='https://cdn.syndication.twimg.com/tweet-result?id=2083186849879630084&lang=en'
+
+          curl -L --fail --retry 3 -A 'Mozilla/5.0 HQ probe' "$FX" -o fxtwitter.json || true
+          curl -L --fail --retry 3 -A 'Mozilla/5.0 HQ probe' "$VX" -o vxtwitter.json || true
+          curl -L --fail --retry 3 -A 'Mozilla/5.0 HQ probe' "$SYN" -o syndication.json || true
+          yt-dlp --no-warnings --dump-single-json "$TWEET" > ytdlp.json 2>ytdlp.err || true
+          gallery-dl --dump-json "$TWEET" > gallerydl.json 2>gallerydl.err || true
+
+          cat > probe.py <<'PY'
+          import json, os, re, subprocess, urllib.parse
+          files=['fxtwitter.json','vxtwitter.json','syndication.json','ytdlp.json','gallerydl.json']
+          urls=[]
+          texts=[]
+          def walk(x):
+              if isinstance(x,dict):
+                  for k,v in x.items():
+                      if isinstance(v,str):
+                          if 'video.twimg.com' in v or v.endswith('.m3u8') or '.mp4' in v:
+                              urls.append(v.replace('\\/','/'))
+                          if k.lower() in {'text','description','full_text','title'} and len(v)<2000:
+                              texts.append(f'{k}: {v}')
+                      walk(v)
+              elif isinstance(x,list):
+                  for v in x: walk(v)
+          for f in files:
+              if not os.path.exists(f): continue
+              try:
+                  with open(f,encoding='utf-8') as h: walk(json.load(h))
+              except Exception as e:
+                  texts.append(f'{f} parse error: {e}')
+          # Include user-provided variant explicitly
+          urls.append('https://video.twimg.com/amplify_video/2083186739871404032/vid/avc1/1480x1080/n37Oto_lktvSgo62.mp4?tag=29')
+          # dedupe
+          seen=[]
+          for u in urls:
+              if u not in seen: seen.append(u)
+          with open('report.txt','w',encoding='utf-8') as out:
+              out.write('TEXT / METADATA\n'+'='*80+'\n')
+              for t in dict.fromkeys(texts): out.write(t+'\n')
+              out.write('\nDISCOVERED URLS\n'+'='*80+'\n')
+              for i,u in enumerate(seen,1):
+                  out.write(f'[{i}] {u}\n')
+                  safe=f'candidate_{i}'
+                  try:
+                      p=subprocess.run(['curl','-L','--fail','--retry','2','-A','Mozilla/5.0','-e','https://x.com/',u,'-o',safe],capture_output=True,text=True,timeout=120)
+                      if p.returncode:
+                          out.write(f'  download failed: {p.stderr[-500:]}\n')
+                          continue
+                      q=subprocess.run(['ffprobe','-v','error','-select_streams','v:0','-show_entries','stream=codec_name,width,height,r_frame_rate,bit_rate:format=duration,size,bit_rate','-of','json',safe],capture_output=True,text=True,timeout=60)
+                      out.write('  '+q.stdout.replace('\n',' ')+'\n')
+                      os.remove(safe)
+                  except Exception as e:
+                      out.write(f'  error: {e}\n')
+          PY
+          python probe.py
+          printf '\n--- yt-dlp error ---\n' >> report.txt
+          cat ytdlp.err >> report.txt || true
+          printf '\n--- gallery-dl error ---\n' >> report.txt
+          cat gallerydl.err >> report.txt || true
+          cat report.txt
+
+      - name: Commit probe results
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add report.txt fxtwitter.json vxtwitter.json syndication.json ytdlp.json gallerydl.json ytdlp.err gallerydl.err || true
+          git commit -m 'Temporary X HQ probe results' || true
+          git push origin HEAD:${{ github.head_ref }}
