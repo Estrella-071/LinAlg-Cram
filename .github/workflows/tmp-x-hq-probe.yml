@@ -12,13 +12,13 @@ permissions:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.head_ref }}
 
-      - name: Find and match higher-quality source
+      - name: Recover and match higher-quality source
         shell: bash
         run: |
           set -euo pipefail
@@ -27,64 +27,34 @@ jobs:
           python -m pip install -q yt-dlp opencv-python-headless numpy
 
           X_URL='https://video.twimg.com/amplify_video/2083186739871404032/vid/avc1/1480x1080/n37Oto_lktvSgo62.mp4?tag=29'
+          RUTUBE_URL='https://rutube.ru/video/b45ca592fd8d721f26f922c0a509e9f2/'
           curl -L --fail --retry 4 --retry-all-errors -A 'Mozilla/5.0' -e 'https://x.com/' "$X_URL" -o x_source.mp4
 
-          yt-dlp --flat-playlist --dump-json 'ytsearch20:HOPPERS Meet Tom The Lizard Trailer NEW 2026' > ytsearch.jsonl
-
-          cat > select.py <<'PY'
-          import json
-          rows=[]
-          for line in open('ytsearch.jsonl',encoding='utf-8'):
-              try: rows.append(json.loads(line))
-              except: pass
-          def score(r):
-              t=(r.get('title') or '').lower(); u=(r.get('uploader') or r.get('channel') or '').lower()
-              s=0
-              if 'meet tom' in t: s+=100
-              if 'hoppers' in t: s+=30
-              if 'lizard' in t: s+=30
-              if 'joblo animated' in u: s+=80
-              if '4k' in t: s+=10
-              return s
-          rows.sort(key=score,reverse=True)
-          with open('yt_candidates.txt','w',encoding='utf-8') as f:
-              for r in rows:
-                  f.write(f"{score(r):3d}\t{r.get('id')}\t{r.get('title')}\t{r.get('uploader') or r.get('channel')}\n")
-          if not rows: raise SystemExit('No YouTube search results')
-          best=rows[0]
-          open('selected_url.txt','w').write(best.get('webpage_url') or ('https://www.youtube.com/watch?v='+best['id']))
-          open('selected_meta.json','w').write(json.dumps(best,ensure_ascii=False,indent=2))
-          print(open('yt_candidates.txt').read())
-          print('SELECTED',open('selected_url.txt').read())
-          PY
-          python select.py
-
-          SELECTED="$(cat selected_url.txt)"
+          yt-dlp --no-warnings --dump-single-json "$RUTUBE_URL" > selected_meta.json
           yt-dlp --no-playlist --no-warnings \
-            -f 'bv*[height<=2160]+ba/b[height<=2160]' \
-            --merge-output-format mp4 -o 'trailer.%(ext)s' "$SELECTED"
+            -f 'bv*[height<=2160]+ba/b[height<=2160]/best' \
+            --merge-output-format mp4 -o 'trailer.%(ext)s' "$RUTUBE_URL"
           TRAILER="$(find . -maxdepth 1 -type f -name 'trailer.*' | head -n1)"
           test -n "$TRAILER"
           mv "$TRAILER" trailer_source.mp4
 
           cat > match.py <<'PY'
-          import cv2, json, math, numpy as np
+          import cv2, json, numpy as np
           TARGET_ASPECT=1480/1080
           SAMPLE_FPS=8.0
           CLIP_DURATION=8.266304
-          def prep(frame, mode='crop'):
+          def prep(frame):
               h,w=frame.shape[:2]
-              if mode=='crop':
-                  a=w/h
-                  if a>TARGET_ASPECT:
-                      nw=int(round(h*TARGET_ASPECT)); x=(w-nw)//2; frame=frame[:,x:x+nw]
-                  else:
-                      nh=int(round(w/TARGET_ASPECT)); y=(h-nh)//2; frame=frame[y:y+nh,:]
-              frame=cv2.resize(frame,(40,30),interpolation=cv2.INTER_AREA)
+              a=w/h
+              if a>TARGET_ASPECT:
+                  nw=int(round(h*TARGET_ASPECT)); x=(w-nw)//2; frame=frame[:,x:x+nw]
+              else:
+                  nh=int(round(w/TARGET_ASPECT)); y=(h-nh)//2; frame=frame[y:y+nh,:]
+              frame=cv2.resize(frame,(48,35),interpolation=cv2.INTER_AREA)
               g=cv2.cvtColor(frame,cv2.COLOR_BGR2GRAY).astype(np.float32)
               g=(g-g.mean())/(g.std()+1e-6)
               return g.reshape(-1)
-          def sample(path, crop=True):
+          def sample(path):
               cap=cv2.VideoCapture(path)
               fps=cap.get(cv2.CAP_PROP_FPS) or 30
               dur=(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)/fps
@@ -93,22 +63,20 @@ jobs:
                   cap.set(cv2.CAP_PROP_POS_MSEC,t*1000)
                   ok,fr=cap.read()
                   if not ok: break
-                  out.append(prep(fr,'crop' if crop else 'fit'))
-                  t+=1/SAMPLE_FPS
+                  out.append(prep(fr)); t+=1/SAMPLE_FPS
               cap.release()
               return np.stack(out),dur
-          src,sdur=sample('x_source.mp4',True)
-          cand,cdur=sample('trailer_source.mp4',True)
+          src,sdur=sample('x_source.mp4')
+          cand,cdur=sample('trailer_source.mp4')
           n=min(len(src),int(CLIP_DURATION*SAMPLE_FPS))
           src=src[:n]
           best=(-9,None)
-          scores=[]
-          for j in range(0,len(cand)-n):
+          for j in range(0,max(0,len(cand)-n)):
               score=float(np.mean(np.sum(src*cand[j:j+n],axis=1)/src.shape[1]))
-              scores.append(score)
               if score>best[0]: best=(score,j)
+          if best[1] is None: raise SystemExit('Candidate shorter than clip')
           start=best[1]/SAMPLE_FPS
-          result={'sample_fps':SAMPLE_FPS,'source_duration':sdur,'candidate_duration':cdur,'best_score':best[0],'best_start':start,'source_frames':n}
+          result={'sample_fps':SAMPLE_FPS,'x_duration':sdur,'candidate_duration':cdur,'best_score':best[0],'best_start':start,'matched_frames':n}
           open('match.json','w').write(json.dumps(result,indent=2))
           open('start.txt','w').write(f'{start:.6f}')
           print(json.dumps(result,indent=2))
@@ -117,10 +85,9 @@ jobs:
 
           START="$(cat start.txt)"
           DUR='8.266304'
-          # Preserve the same 1480:1080 composition while using the larger trailer master.
           ffmpeg -y -ss "$START" -i trailer_source.mp4 -t "$DUR" \
             -vf "crop='floor(ih*37/27/2)*2:ih:(iw-ow)/2:0'" \
-            -an -c:v libx264 -preset slow -crf 12 -pix_fmt yuv420p cute_lizard_hq_source.mp4
+            -an -c:v libx264 -preset slow -crf 10 -pix_fmt yuv420p cute_lizard_hq_source.mp4
 
           ffmpeg -y -i cute_lizard_hq_source.mp4 -filter_complex \
             "[0:v]fps=30,scale=1080:-2:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=256:stats_mode=diff[p];[s1][p]paletteuse=dither=sierra2_4a:diff_mode=rectangle" \
@@ -132,16 +99,15 @@ jobs:
 
           {
             echo '=== Selected source ==='
-            cat selected_url.txt
-            jq -r '[.title,.uploader,.id,.duration] | @tsv' selected_meta.json || true
-            echo '=== Match ==='
-            cat match.json
+            jq -r '[.title,.uploader,.id,.duration,.width,.height,.fps] | @tsv' selected_meta.json || true
+            echo '=== Match ==='; cat match.json
             echo '=== X source ==='
             ffprobe -v error -select_streams v:0 -show_entries stream=width,height,r_frame_rate,bit_rate:format=duration,size,bit_rate -of json x_source.mp4
+            echo '=== Trailer source ==='
+            ffprobe -v error -select_streams v:0 -show_entries stream=width,height,r_frame_rate,bit_rate:format=duration,size,bit_rate -of json trailer_source.mp4
             echo '=== HQ extracted source ==='
             ffprobe -v error -select_streams v:0 -show_entries stream=width,height,r_frame_rate,bit_rate:format=duration,size,bit_rate -of json cute_lizard_hq_source.mp4
-            echo '=== Outputs ==='
-            ls -lh cute_lizard_hq_source.mp4 cute_lizard_hq_1080.gif cute_lizard_hq_840.gif
+            echo '=== Outputs ==='; ls -lh cute_lizard_hq_source.mp4 cute_lizard_hq_1080.gif cute_lizard_hq_840.gif
           } | tee hq_report.txt
 
       - name: Upload HQ outputs
@@ -154,7 +120,6 @@ jobs:
             cute_lizard_hq_840.gif
             hq_report.txt
             match.json
-            yt_candidates.txt
             selected_meta.json
           compression-level: 0
           retention-days: 1
