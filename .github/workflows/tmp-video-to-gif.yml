@@ -1,0 +1,47 @@
+name: Temporary video to GIF
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/tmp-video-to-gif.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  convert:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download and convert
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL='https://video.twimg.com/amplify_video/2083186739871404032/vid/avc1/1480x1080/n37Oto_lktvSgo62.mp4?tag=29'
+          curl -L --fail --retry 4 --retry-all-errors \
+            --connect-timeout 20 \
+            -A 'Mozilla/5.0' -e 'https://x.com/' \
+            "$URL" -o source.mp4
+
+          ffprobe -v error -show_entries format=duration,size \
+            -of default=noprint_wrappers=1 source.mp4
+
+          ffmpeg -y -i source.mp4 -filter_complex \
+            "[0:v]fps=15,scale=640:-2:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=256:stats_mode=diff[p];[s1][p]paletteuse=dither=sierra2_4a:diff_mode=rectangle" \
+            cute_x_video.gif
+
+          ls -lh source.mp4 cute_x_video.gif
+
+      - name: Commit GIF
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add cute_x_video.gif
+          git commit -m 'Temporary GIF conversion output'
+          git push
